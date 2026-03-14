@@ -26,6 +26,6 @@
 
 ## Phase 5: Workflow Reusability & Google Cloud Integration
 - [x] 1. Set up Firebase/Firestore.
-- [x] 2. Implement the `save_workflow` tool to persist the sequence of semantic actions to Firestore. (Currently saves metadata, needs to save actual steps).
+- [x] 2. Implement the `save_workflow` tool to persist the sequence of semantic actions to Firestore.
 - [x] 3. Populate the Left Sidebar with saved workflows.
-- [ ] 4. Implement the "Run" button to replay a saved workflow's tool calls directly against the Demo Workspace.
+- [x] 4. Implement the "Run" button to replay a saved workflow's tool calls directly against the Demo Workspace.

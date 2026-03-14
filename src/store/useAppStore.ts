@@ -29,6 +29,7 @@ export interface Workflow {
   name: string;
   description: string;
   lastRun: string;
+  steps: any[];
 }
 
 interface AppStore {
@@ -45,6 +46,10 @@ interface AppStore {
   workflows: Workflow[];
   addWorkflow: (workflow: Workflow) => void;
   setWorkflows: (workflows: Workflow[]) => void;
+
+  currentSessionActions: any[];
+  addActionToSession: (action: any) => void;
+  clearSessionActions: () => void;
   
   // Workspace specific state
   currentView: 'inbox' | 'drafts' | 'notes';
@@ -78,6 +83,10 @@ export const useAppStore = create<AppStore>((set) => ({
   workflows: [],
   addWorkflow: (workflow) => set((store) => ({ workflows: [...store.workflows, workflow] })),
   setWorkflows: (workflows) => set({ workflows }),
+  
+  currentSessionActions: [],
+  addActionToSession: (action) => set((store) => ({ currentSessionActions: [...store.currentSessionActions, action] })),
+  clearSessionActions: () => set({ currentSessionActions: [] }),
   
   currentView: 'inbox',
   setCurrentView: (view) => set({ currentView: view }),

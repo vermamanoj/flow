@@ -21,9 +21,16 @@
         "authorUid": {
           "type": "string",
           "description": "The UID of the user who created the workflow."
+        },
+        "steps": {
+          "type": "array",
+          "description": "The sequence of semantic actions that make up the workflow.",
+          "items": {
+            "type": "object"
+          }
         }
       },
-      "required": ["name", "description", "lastRun", "authorUid"]
+      "required": ["name", "description", "lastRun", "authorUid", "steps"]
     }
   },
   "firestore": {

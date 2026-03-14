@@ -9,12 +9,13 @@ import { Sidebar } from './components/Sidebar';
 import { Workspace } from './components/Workspace';
 import { LogPanel } from './components/LogPanel';
 import { useAppStore } from './store/useAppStore';
-import html2canvas from 'html2canvas';
+import { domToJpeg } from 'modern-screenshot';
 
 export default function App() {
   const { 
     state, setState, addLog, setPlan, updatePlanStep, 
-    setCurrentView, addDraft, setPendingApproval, addWorkflow 
+    setCurrentView, addDraft, setPendingApproval, addWorkflow,
+    currentSessionActions, addActionToSession, clearSessionActions
   } = useAppStore();
   
   const wsRef = useRef<WebSocket | null>(null);
@@ -22,8 +23,17 @@ export default function App() {
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const processorRef = useRef<ScriptProcessorNode | null>(null);
   const captureIntervalRef = useRef<number | null>(null);
+  const activeAudioNodesRef = useRef<AudioBufferSourceNode[]>([]);
+
+  const stopAudioPlayback = () => {
+    activeAudioNodesRef.current.forEach(node => {
+      try { node.stop(); } catch (e) {}
+    });
+    activeAudioNodesRef.current = [];
+  };
 
   const startSession = async () => {
+    clearSessionActions();
     setState('LISTENING');
     addLog({ type: 'system', message: 'Starting voice session...' });
 
@@ -46,6 +56,9 @@ export default function App() {
       if (data.type === 'connected') {
         setState('THINKING');
         addLog({ type: 'system', message: 'Gemini Live session established.' });
+      } else if (data.type === 'closed') {
+        addLog({ type: 'system', message: 'Gemini session closed by server.' });
+        stopSession();
       } else if (data.type === 'audio') {
         setState('SPEAKING');
         playAudio(data.data);
@@ -54,6 +67,8 @@ export default function App() {
         addLog({ type: 'system', message: 'Agent interrupted by user.' });
       } else if (data.type === 'toolCall') {
         handleToolCall(data.toolCall);
+      } else if (data.type === 'debug') {
+        console.log('DEBUG:', data.message);
       } else if (data.type === 'error') {
         addLog({ type: 'system', message: `Error: ${data.error}` });
         stopSession();
@@ -67,6 +82,7 @@ export default function App() {
   };
 
   const stopSession = () => {
+    stopAudioPlayback();
     setState('IDLE');
     if (wsRef.current) {
       wsRef.current.send(JSON.stringify({ type: 'stop' }));
@@ -88,6 +104,7 @@ export default function App() {
   };
 
   const interruptSession = () => {
+    stopAudioPlayback();
     setState('INTERRUPTED');
     addLog({ type: 'user', message: 'User interrupted the session.' });
     if (wsRef.current) {
@@ -109,7 +126,8 @@ export default function App() {
       processorRef.current = processor;
       
       processor.onaudioprocess = (e) => {
-        if (wsRef.current?.readyState === WebSocket.OPEN && state !== 'IDLE') {
+        const currentState = useAppStore.getState().state;
+        if (wsRef.current?.readyState === WebSocket.OPEN && currentState !== 'IDLE') {
           const inputData = e.inputBuffer.getChannelData(0);
           // Convert Float32Array to Int16Array (PCM 16-bit)
           const pcmData = new Int16Array(inputData.length);
@@ -139,10 +157,13 @@ export default function App() {
   const startScreenCapture = () => {
     captureIntervalRef.current = window.setInterval(async () => {
       const workspaceEl = (window as any).workspaceRef;
-      if (workspaceEl && wsRef.current?.readyState === WebSocket.OPEN && state !== 'IDLE') {
+      if (workspaceEl && wsRef.current?.readyState === WebSocket.OPEN && useAppStore.getState().state !== 'IDLE') {
         try {
-          const canvas = await html2canvas(workspaceEl, { scale: 0.5 });
-          const base64 = canvas.toDataURL('image/jpeg', 0.5).split(',')[1];
+          const dataUrl = await domToJpeg(workspaceEl, {
+            quality: 0.5,
+            scale: 0.5,
+          });
+          const base64 = dataUrl.split(',')[1];
           wsRef.current.send(JSON.stringify({ type: 'image', data: base64 }));
         } catch (err) {
           console.error('Screen capture error:', err);
@@ -176,6 +197,12 @@ export default function App() {
       const source = audioCtx.createBufferSource();
       source.buffer = audioBuffer;
       source.connect(audioCtx.destination);
+      
+      activeAudioNodesRef.current.push(source);
+      source.onended = () => {
+        activeAudioNodesRef.current = activeAudioNodesRef.current.filter(n => n !== source);
+      };
+      
       source.start();
     } catch (err) {
       console.error('Error playing audio:', err);
@@ -192,6 +219,10 @@ export default function App() {
       
       let result = { status: 'success' };
       
+      if (name === 'navigate_view' || name === 'draft_content') {
+        addActionToSession({ name, args });
+      }
+
       if (name === 'navigate_view') {
         setCurrentView(args.view);
       } else if (name === 'draft_content') {
@@ -219,7 +250,8 @@ export default function App() {
           id: Math.random().toString(36).substring(7),
           name: args.workflow_name,
           description: 'Saved from live session',
-          lastRun: new Date().toISOString()
+          lastRun: new Date().toISOString(),
+          steps: currentSessionActions
         };
         addWorkflow(newWorkflow);
         addLog({ type: 'workflow', message: `Workflow saved: ${args.workflow_name}` });
@@ -233,7 +265,8 @@ export default function App() {
               name: newWorkflow.name,
               description: newWorkflow.description,
               lastRun: newWorkflow.lastRun,
-              authorUid: auth.currentUser.uid
+              authorUid: auth.currentUser.uid,
+              steps: newWorkflow.steps
             });
           }
         } catch (error) {
@@ -274,11 +307,30 @@ export default function App() {
     setState('LISTENING');
   };
 
+  const executeWorkflow = async (workflow: any) => {
+    setState('ACTING');
+    addLog({ type: 'system', message: `Starting workflow: ${workflow.name}` });
+
+    for (const step of workflow.steps || []) {
+      addLog({ type: 'action', message: `Replaying: ${step.name}`, details: step.args });
+      if (step.name === 'navigate_view') {
+        setCurrentView(step.args.view);
+      } else if (step.name === 'draft_content') {
+        addDraft({ target: step.args.target, content: step.args.content });
+      }
+      // Wait a bit for visual effect
+      await new Promise(resolve => setTimeout(resolve, 1500));
+    }
+
+    setState('IDLE');
+    addLog({ type: 'system', message: `Workflow completed.` });
+  };
+
   return (
     <div className="h-screen w-screen flex flex-col bg-gray-100 overflow-hidden font-sans">
       <Header onStart={startSession} onStop={stopSession} onInterrupt={interruptSession} />
       <div className="flex-1 flex overflow-hidden">
-        <Sidebar />
+        <Sidebar onPlayWorkflow={executeWorkflow} />
         <Workspace />
         <LogPanel />
       </div>

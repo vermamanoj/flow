@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
-import { Play, Clock, Save, LogIn } from 'lucide-react';
+import { Play, Clock, Save, LogIn, Eye } from 'lucide-react';
 import { db, auth } from '../firebase';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from 'firebase/auth';
+import { WorkflowVisualizer } from './WorkflowVisualizer';
 
-export const Sidebar: React.FC = () => {
+export const Sidebar: React.FC<{ onPlayWorkflow: (wf: any) => void }> = ({ onPlayWorkflow }) => {
   const { workflows, setWorkflows } = useAppStore();
   const [user, setUser] = useState(auth.currentUser);
+  const [viewingWorkflow, setViewingWorkflow] = useState<any | null>(null);
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
@@ -84,9 +86,14 @@ export const Sidebar: React.FC = () => {
                 <Clock size={12} />
                 {new Date(wf.lastRun).toLocaleDateString()}
               </span>
-              <button className="opacity-0 group-hover:opacity-100 transition-opacity bg-indigo-50 text-indigo-600 hover:bg-indigo-100 p-1.5 rounded-full">
-                <Play size={14} />
-              </button>
+              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button onClick={() => setViewingWorkflow(wf)} className="bg-gray-50 text-gray-600 hover:bg-gray-100 p-1.5 rounded-full">
+                  <Eye size={14} />
+                </button>
+                <button onClick={() => onPlayWorkflow(wf)} className="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 p-1.5 rounded-full">
+                  <Play size={14} />
+                </button>
+              </div>
             </div>
           </div>
         ))}
@@ -97,6 +104,10 @@ export const Sidebar: React.FC = () => {
           </div>
         )}
       </div>
+
+      {viewingWorkflow && (
+        <WorkflowVisualizer workflow={viewingWorkflow} onClose={() => setViewingWorkflow(null)} />
+      )}
     </aside>
   );
 };

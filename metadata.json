@@ -1,5 +1,7 @@
 {
-  "name": "",
-  "description": "",
-  "requestFramePermissions": []
+  "name": "Proxi Flow",
+  "description": "A voice-controlled AI workspace assistant using Gemini Live API with screen capture and semantic action execution.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
 }
