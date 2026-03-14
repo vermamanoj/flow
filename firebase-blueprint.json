@@ -1,0 +1,37 @@
+{
+  "entities": {
+    "Workflow": {
+      "title": "Workflow",
+      "description": "A saved sequence of semantic actions that can be replayed.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "The name of the workflow."
+        },
+        "description": {
+          "type": "string",
+          "description": "A short description of what the workflow does."
+        },
+        "lastRun": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp of when the workflow was last executed."
+        },
+        "authorUid": {
+          "type": "string",
+          "description": "The UID of the user who created the workflow."
+        }
+      },
+      "required": ["name", "description", "lastRun", "authorUid"]
+    }
+  },
+  "firestore": {
+    "/workflows/{workflowId}": {
+      "schema": {
+        "$ref": "#/entities/Workflow"
+      },
+      "description": "Stores all saved workflows created by users."
+    }
+  }
+}

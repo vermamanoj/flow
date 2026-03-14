@@ -1,0 +1,57 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function uidUnchanged() {
+      return !('authorUid' in request.resource.data) || request.resource.data.authorUid == request.auth.uid;
+    }
+    
+    function uidNotModified() {
+      return !('authorUid' in request.resource.data) || request.resource.data.authorUid == resource.data.authorUid;
+    }
+    
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+    
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+    
+    function isValidWorkflow(data) {
+      return hasOnlyAllowedFields(['name', 'description', 'lastRun', 'authorUid']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             data.description is string && data.description.size() <= 500 &&
+             data.lastRun is string &&
+             data.authorUid is string && data.authorUid.size() > 0;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /workflows/{workflowId} {
+      allow read: if isAuthenticated() && resource.data.authorUid == request.auth.uid;
+      allow create: if isAuthenticated() && isValidWorkflow(request.resource.data) && uidUnchanged();
+      allow update: if isAuthenticated() && resource.data.authorUid == request.auth.uid && isValidWorkflow(request.resource.data) && uidNotModified();
+      allow delete: if isAuthenticated() && resource.data.authorUid == request.auth.uid;
+    }
+  }
+}
