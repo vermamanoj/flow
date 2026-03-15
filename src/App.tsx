@@ -20,6 +20,7 @@ export default function App() {
   
   const wsRef = useRef<WebSocket | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const playbackContextRef = useRef<AudioContext | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const processorRef = useRef<ScriptProcessorNode | null>(null);
   const captureIntervalRef = useRef<number | null>(null);
@@ -87,8 +88,12 @@ export default function App() {
     stopAudioPlayback();
     setState('IDLE');
     if (wsRef.current) {
-      wsRef.current.send(JSON.stringify({ type: 'stop' }));
-      wsRef.current.close();
+      try {
+        if (wsRef.current.readyState === WebSocket.OPEN) {
+          wsRef.current.send(JSON.stringify({ type: 'stop' }));
+        }
+        wsRef.current.close();
+      } catch (e) {}
       wsRef.current = null;
     }
     if (mediaStreamRef.current) {
@@ -99,6 +104,11 @@ export default function App() {
     }
     if (audioContextRef.current) {
       audioContextRef.current.close();
+      audioContextRef.current = null;
+    }
+    if (playbackContextRef.current) {
+      playbackContextRef.current.close();
+      playbackContextRef.current = null;
     }
     if (captureIntervalRef.current) {
       window.clearInterval(captureIntervalRef.current);
@@ -185,9 +195,11 @@ export default function App() {
       
       // The data is raw PCM 16-bit 24kHz (Gemini default output rate)
       // We need to decode it. A simple way is to create an AudioBuffer.
-      if (!audioContextRef.current) return;
+      if (!playbackContextRef.current) {
+        playbackContextRef.current = new AudioContext({ sampleRate: 24000 });
+      }
       
-      const audioCtx = audioContextRef.current;
+      const audioCtx = playbackContextRef.current;
       const int16Array = new Int16Array(bytes.buffer);
       const audioBuffer = audioCtx.createBuffer(1, int16Array.length, 24000);
       const channelData = audioBuffer.getChannelData(0);
