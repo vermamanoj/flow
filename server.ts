@@ -447,6 +447,13 @@ async function startServer() {
                           }));
                           const result = await executeDesktopTool(call.name, call.args || {});
                           console.log(`Tool result for ${call.name}:`, JSON.stringify(result).substring(0, 200));
+                          // Send result back to frontend for display
+                          ws.send(JSON.stringify({
+                            type: 'serverToolResult',
+                            name: call.name,
+                            args: call.args,
+                            result
+                          }));
                           responses.push({
                             id: call.id,
                             name: call.name,

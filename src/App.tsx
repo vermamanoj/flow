@@ -15,7 +15,8 @@ export default function App() {
   const { 
     state, setState, addLog, setPlan, updatePlanStep, 
     setCurrentView, addDraft, setPendingApproval, addWorkflow,
-    currentSessionActions, addActionToSession, clearSessionActions
+    currentSessionActions, addActionToSession, clearSessionActions,
+    addActivity, clearActivities
   } = useAppStore();
   
   const wsRef = useRef<WebSocket | null>(null);
@@ -78,6 +79,7 @@ export default function App() {
 
   const startSessionWithCode = async (code: string) => {
     clearSessionActions();
+    clearActivities();
     setState('LISTENING');
     addLog({ type: 'system', message: 'Starting session...' });
 
@@ -112,7 +114,30 @@ export default function App() {
       } else if (data.type === 'toolCall') {
         handleToolCall(data.toolCall);
       } else if (data.type === 'serverToolExec') {
-        addLog({ type: 'action', message: `Desktop: ${data.name}`, details: data.args });
+        const desktopNames: Record<string, string> = {
+          take_screenshot: 'Capturing screenshot',
+          run_command: 'Running command',
+          open_url: 'Opening URL',
+          list_files: 'Listing files',
+          read_file: 'Reading file',
+        };
+        addLog({ type: 'action', message: desktopNames[data.name] || `Desktop: ${data.name}`, details: data.args });
+      } else if (data.type === 'serverToolResult') {
+        // Push tool results into the activity feed for workspace display
+        const { name, args, result } = data;
+        if (name === 'take_screenshot') {
+          addActivity({ type: 'screenshot', title: 'Screenshot captured', data: result });
+        } else if (name === 'list_files') {
+          addActivity({ type: 'file_list', title: `Files in ${args?.directory || '.'}`, data: result });
+        } else if (name === 'read_file') {
+          addActivity({ type: 'file_read', title: `File: ${args?.file_path || 'unknown'}`, data: result });
+        } else if (name === 'run_command') {
+          addActivity({ type: 'command', title: `$ ${args?.command || ''}`, data: result });
+        } else if (name === 'open_url') {
+          addActivity({ type: 'url', title: `Opened ${args?.url || ''}`, data: result });
+        } else {
+          addActivity({ type: 'info', title: `${name} completed`, data: result });
+        }
       } else if (data.type === 'debug') {
         console.log('DEBUG:', data.message);
       } else if (data.type === 'error') {
@@ -302,8 +327,10 @@ export default function App() {
 
       if (name === 'navigate_view') {
         setCurrentView(args.view);
+        addActivity({ type: 'navigate', title: `Opened ${args.view}`, data: { view: args.view } });
       } else if (name === 'draft_content') {
         addDraft({ target: args.target, content: args.content });
+        addActivity({ type: 'draft', title: `Draft to ${args.target}`, data: { target: args.target, content: args.content } });
       } else if (name === 'request_approval') {
         setState('PAUSED_FOR_APPROVAL');
         setPendingApproval(args);

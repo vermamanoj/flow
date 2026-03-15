@@ -24,6 +24,14 @@ export interface LogItem {
   details?: any;
 }
 
+export interface ActivityItem {
+  id: string;
+  timestamp: string;
+  type: 'navigate' | 'screenshot' | 'file_read' | 'file_list' | 'command' | 'url' | 'draft' | 'info';
+  title: string;
+  data?: any;
+}
+
 export interface Workflow {
   id: string;
   name: string;
@@ -59,6 +67,10 @@ interface AppStore {
   
   pendingApproval: any | null;
   setPendingApproval: (approval: any | null) => void;
+
+  activities: ActivityItem[];
+  addActivity: (activity: Omit<ActivityItem, 'id' | 'timestamp'>) => void;
+  clearActivities: () => void;
 }
 
 export const useAppStore = create<AppStore>((set) => ({
@@ -95,4 +107,14 @@ export const useAppStore = create<AppStore>((set) => ({
   
   pendingApproval: null,
   setPendingApproval: (approval) => set({ pendingApproval: approval }),
+
+  activities: [],
+  addActivity: (activity) => set((store) => ({
+    activities: [...store.activities, {
+      ...activity,
+      id: Math.random().toString(36).substring(7),
+      timestamp: new Date().toISOString()
+    }]
+  })),
+  clearActivities: () => set({ activities: [] }),
 }));

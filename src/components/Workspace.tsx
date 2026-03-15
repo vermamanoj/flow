@@ -3,7 +3,7 @@ import { useAppStore } from '../store/useAppStore';
 import { Mail, FileText, Send, CheckCircle2, Circle, AlertCircle, PlayCircle, MessageCircle, Terminal, Zap, Mic, Monitor, ShieldCheck, FolderCog, Eye, Sparkles, ArrowRight, CheckCheck } from 'lucide-react';
 
 export const Workspace: React.FC = () => {
-  const { state, plan, logs, currentView, setCurrentView, drafts, pendingApproval } = useAppStore();
+  const { state, plan, logs, currentView, setCurrentView, drafts, pendingApproval, activities } = useAppStore();
   const transcriptRef = useRef<HTMLDivElement>(null);
   const workspaceRef = useRef<HTMLDivElement>(null);
   const [waitlistName, setWaitlistName] = useState('');
@@ -40,6 +40,8 @@ export const Workspace: React.FC = () => {
     (window as any).workspaceRef = workspaceRef.current;
   }, []);
 
+  const feedRef = useRef<HTMLDivElement>(null);
+
   // Auto-scroll transcript to the end
   // Only show user and agent messages in transcript (not action logs which are noisy)
   const conversationLogs = logs.filter(l => ['user', 'agent'].includes(l.type));
@@ -48,6 +50,13 @@ export const Workspace: React.FC = () => {
       transcriptRef.current.scrollLeft = transcriptRef.current.scrollWidth;
     }
   }, [conversationLogs.length]);
+
+  // Auto-scroll activity feed
+  useEffect(() => {
+    if (feedRef.current) {
+      feedRef.current.scrollTop = feedRef.current.scrollHeight;
+    }
+  }, [activities.length]);
 
   return (
     <main className="flex-1 flex flex-col h-full bg-slate-950 overflow-hidden">
@@ -210,92 +219,168 @@ export const Workspace: React.FC = () => {
           </div>
         </div>
       ) : (
-        /* Demo Workspace Area */
-        <div className="flex-1 p-6 overflow-y-auto" ref={workspaceRef}>
-          <div className="max-w-4xl mx-auto bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden min-h-[500px] flex flex-col shadow-xl">
-            
-            {/* Mock App Header */}
-            <div className="bg-slate-800 border-b border-slate-700 px-6 py-4 flex items-center gap-6">
-              <div className="flex items-center gap-2 text-indigo-400 font-bold">
-                <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white">M</div>
-                MockCRM
+        /* Live Activity Feed */
+        <div className="flex-1 p-6 overflow-y-auto" ref={(el) => { (workspaceRef as any).current = el; (feedRef as any).current = el; }}>
+          <div className="max-w-3xl mx-auto space-y-4">
+            {activities.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-slate-500">
+                <Eye size={40} className="mb-4 text-slate-600" />
+                <p className="text-lg font-medium text-slate-400">Agent is listening...</p>
+                <p className="text-sm mt-1">Actions and results will appear here as the agent works.</p>
               </div>
-              <nav className="flex gap-2 ml-8">
-                <button 
-                  onClick={() => setCurrentView('inbox')}
-                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${currentView === 'inbox' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-200'}`}
-                >
-                  <Mail size={16} className="inline mr-2" /> Inbox
-                </button>
-                <button 
-                  onClick={() => setCurrentView('notes')}
-                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${currentView === 'notes' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-200'}`}
-                >
-                  <FileText size={16} className="inline mr-2" /> Client Notes
-                </button>
-                <button 
-                  onClick={() => setCurrentView('drafts')}
-                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${currentView === 'drafts' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-slate-200'}`}
-                >
-                  <Send size={16} className="inline mr-2" /> Drafts ({drafts.length})
-                </button>
-              </nav>
-            </div>
+            ) : (
+              activities.map((activity) => (
+                <div key={activity.id} className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden shadow-lg">
+                  {/* Activity Header */}
+                  <div className="px-4 py-2.5 border-b border-slate-800 flex items-center gap-2.5">
+                    <span className="shrink-0">
+                      {activity.type === 'navigate' ? <Mail size={14} className="text-indigo-400" /> :
+                       activity.type === 'screenshot' ? <Monitor size={14} className="text-emerald-400" /> :
+                       activity.type === 'file_read' ? <FileText size={14} className="text-amber-400" /> :
+                       activity.type === 'file_list' ? <FolderCog size={14} className="text-teal-400" /> :
+                       activity.type === 'command' ? <Terminal size={14} className="text-orange-400" /> :
+                       activity.type === 'url' ? <ArrowRight size={14} className="text-blue-400" /> :
+                       activity.type === 'draft' ? <Send size={14} className="text-violet-400" /> :
+                       <Zap size={14} className="text-slate-400" />}
+                    </span>
+                    <span className="text-sm font-medium text-slate-200">{activity.title}</span>
+                    <span className="ml-auto text-[10px] text-slate-600">{new Date(activity.timestamp).toLocaleTimeString()}</span>
+                  </div>
 
-            {/* Mock App Content */}
-            <div className="flex-1 p-6">
-              {currentView === 'inbox' && (
-                <div className="space-y-3">
-                  <h2 className="text-lg font-semibold text-slate-200 mb-4">Recent Client Messages</h2>
-                  {[
-                    { id: 1, sender: 'Alice (Q1 Client)', subject: 'Follow up on March deliverables', date: 'Today, 10:00 AM', unread: true },
-                    { id: 2, sender: 'Bob (Q1 Client)', subject: 'Checking in on Q1 progress', date: 'Yesterday, 2:30 PM', unread: true },
-                    { id: 3, sender: 'Charlie (Q2 Client)', subject: 'Introductory call notes', date: 'Mar 10', unread: false },
-                  ].map(msg => (
-                    <div key={msg.id} className={`p-4 rounded-xl border ${msg.unread ? 'bg-slate-800 border-indigo-500/20' : 'bg-slate-800/50 border-slate-700'} flex gap-4 items-start`}>
-                      <div className={`w-2 h-2 mt-2 rounded-full ${msg.unread ? 'bg-indigo-400' : 'bg-transparent'}`} />
-                      <div>
-                        <h4 className={`font-medium ${msg.unread ? 'text-slate-100' : 'text-slate-400'}`}>{msg.sender}</h4>
-                        <p className="text-sm text-slate-300 mt-1">{msg.subject}</p>
-                        <span className="text-xs text-slate-500 mt-2 block">{msg.date}</span>
+                  {/* Activity Content */}
+                  <div className="p-4">
+                    {/* Navigate View — show MockCRM inline */}
+                    {activity.type === 'navigate' && activity.data?.view === 'inbox' && (
+                      <div className="space-y-2">
+                        {[
+                          { sender: 'Alice (Q1 Client)', subject: 'Follow up on March deliverables', date: 'Today, 10:00 AM', unread: true },
+                          { sender: 'Bob (Q1 Client)', subject: 'Checking in on Q1 progress', date: 'Yesterday, 2:30 PM', unread: true },
+                          { sender: 'Charlie (Q2 Client)', subject: 'Introductory call notes', date: 'Mar 10', unread: false },
+                        ].map((msg, i) => (
+                          <div key={i} className={`p-3 rounded-lg border ${msg.unread ? 'bg-slate-800 border-indigo-500/20' : 'bg-slate-800/50 border-slate-700'} flex gap-3 items-start`}>
+                            <div className={`w-2 h-2 mt-1.5 rounded-full shrink-0 ${msg.unread ? 'bg-indigo-400' : 'bg-transparent'}`} />
+                            <div>
+                              <h4 className={`text-sm font-medium ${msg.unread ? 'text-slate-100' : 'text-slate-400'}`}>{msg.sender}</h4>
+                              <p className="text-xs text-slate-400 mt-0.5">{msg.subject}</p>
+                              <span className="text-[10px] text-slate-600 mt-1 block">{msg.date}</span>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                    )}
 
-              {currentView === 'drafts' && (
-                <div className="space-y-3">
-                  <h2 className="text-lg font-semibold text-slate-200 mb-4">Pending Drafts</h2>
-                  {drafts.length === 0 ? (
-                    <div className="text-center py-12 text-slate-500">No pending drafts.</div>
-                  ) : (
-                    drafts.map((draft, idx) => (
-                      <div key={idx} className="bg-slate-800 p-5 rounded-xl border border-slate-700">
-                        <div className="text-sm text-slate-400 mb-2">To: <span className="font-medium text-slate-200">{draft.target}</span></div>
-                        <div className="p-3 bg-slate-900 rounded-lg text-sm text-slate-300 whitespace-pre-wrap border border-slate-700">
-                          {draft.content}
+                    {activity.type === 'navigate' && activity.data?.view === 'notes' && (
+                      <div className="bg-amber-900/20 p-4 rounded-lg border border-amber-500/20">
+                        <h4 className="font-medium text-amber-300 text-sm mb-2">March Action Items</h4>
+                        <ul className="list-disc list-inside text-xs text-amber-200/70 space-y-1">
+                          <li>Send Q1 progress report to Alice</li>
+                          <li>Schedule review meeting with Bob</li>
+                          <li>Prepare onboarding docs for Charlie</li>
+                        </ul>
+                      </div>
+                    )}
+
+                    {activity.type === 'navigate' && activity.data?.view === 'drafts' && (
+                      <div>
+                        {drafts.length === 0 ? (
+                          <p className="text-sm text-slate-500 italic">No pending drafts.</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {drafts.map((draft, idx) => (
+                              <div key={idx} className="bg-slate-800 p-3 rounded-lg border border-slate-700">
+                                <div className="text-xs text-slate-400 mb-1">To: <span className="font-medium text-slate-200">{draft.target}</span></div>
+                                <div className="text-xs text-slate-300 whitespace-pre-wrap">{draft.content}</div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Screenshot */}
+                    {activity.type === 'screenshot' && (
+                      <div className="flex items-center gap-3">
+                        <Monitor size={24} className="text-emerald-500 shrink-0" />
+                        <div>
+                          <p className="text-sm text-emerald-300">Desktop screenshot captured successfully</p>
+                          <p className="text-xs text-slate-500 mt-1">Image sent to Gemini for analysis</p>
                         </div>
                       </div>
-                    ))
-                  )}
-                </div>
-              )}
+                    )}
 
-              {currentView === 'notes' && (
-                <div className="space-y-3">
-                  <h2 className="text-lg font-semibold text-slate-200 mb-4">Client Notes</h2>
-                  <div className="bg-amber-900/20 p-5 rounded-xl border border-amber-500/20">
-                    <h4 className="font-medium text-amber-300 mb-2">March Action Items</h4>
-                    <ul className="list-disc list-inside text-sm text-amber-200/70 space-y-1">
-                      <li>Send Q1 progress report to Alice</li>
-                      <li>Schedule review meeting with Bob</li>
-                      <li>Prepare onboarding docs for Charlie</li>
-                    </ul>
+                    {/* File Read */}
+                    {activity.type === 'file_read' && activity.data && (
+                      <div>
+                        {activity.data.status === 'success' ? (
+                          <pre className="bg-slate-950 rounded-lg p-3 text-xs text-slate-300 overflow-x-auto max-h-48 overflow-y-auto border border-slate-800 font-mono">
+                            {activity.data.content}
+                          </pre>
+                        ) : (
+                          <p className="text-sm text-red-400">{activity.data.message}</p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* File List */}
+                    {activity.type === 'file_list' && activity.data && (
+                      <div>
+                        {activity.data.status === 'success' ? (
+                          <div className="grid grid-cols-2 gap-1 max-h-48 overflow-y-auto">
+                            {(activity.data.entries || []).slice(0, 30).map((f: any, i: number) => (
+                              <div key={i} className="flex items-center gap-2 px-2 py-1 text-xs rounded hover:bg-slate-800">
+                                {f.type === 'directory' ? <FolderCog size={12} className="text-teal-400 shrink-0" /> : <FileText size={12} className="text-slate-500 shrink-0" />}
+                                <span className={`truncate ${f.type === 'directory' ? 'text-teal-300' : 'text-slate-400'}`}>{f.name}</span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-red-400">{activity.data.message}</p>
+                        )}
+                        {activity.data.total > 30 && <p className="text-[10px] text-slate-600 mt-2">Showing 30 of {activity.data.total} entries</p>}
+                      </div>
+                    )}
+
+                    {/* Command Output */}
+                    {activity.type === 'command' && activity.data && (
+                      <div>
+                        {activity.data.status === 'blocked' ? (
+                          <div className="flex items-center gap-2 text-red-400 text-sm">
+                            <ShieldCheck size={16} />
+                            <span>Command blocked by safety guard</span>
+                          </div>
+                        ) : activity.data.status === 'success' ? (
+                          <pre className="bg-slate-950 rounded-lg p-3 text-xs text-green-300/80 overflow-x-auto max-h-48 overflow-y-auto border border-slate-800 font-mono">
+                            {activity.data.stdout || '(no output)'}
+                          </pre>
+                        ) : (
+                          <pre className="bg-slate-950 rounded-lg p-3 text-xs text-red-400 overflow-x-auto max-h-32 overflow-y-auto border border-red-900/30 font-mono">
+                            {activity.data.message || activity.data.stderr}
+                          </pre>
+                        )}
+                      </div>
+                    )}
+
+                    {/* URL Opened */}
+                    {activity.type === 'url' && (
+                      <p className="text-sm text-blue-300">Browser tab opened</p>
+                    )}
+
+                    {/* Draft Content */}
+                    {activity.type === 'draft' && activity.data && (
+                      <div className="bg-slate-800 p-3 rounded-lg border border-slate-700">
+                        <div className="text-xs text-slate-400 mb-1">To: <span className="font-medium text-slate-200">{activity.data.target}</span></div>
+                        <div className="text-xs text-slate-300 whitespace-pre-wrap">{activity.data.content}</div>
+                      </div>
+                    )}
+
+                    {/* Generic Info */}
+                    {activity.type === 'info' && (
+                      <p className="text-sm text-slate-400">{activity.data?.message || 'Completed'}</p>
+                    )}
                   </div>
                 </div>
-              )}
-            </div>
+              ))
+            )}
           </div>
         </div>
       )}
