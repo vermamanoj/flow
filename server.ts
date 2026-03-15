@@ -442,6 +442,11 @@ async function startServer() {
               media: { data: data.data, mimeType: 'image/jpeg' }
             });
           }).catch(console.error);
+        } else if (data.type === 'text' && sessionPromise) {
+          sessionPromise.then((session) => {
+            console.log('Sending text to Gemini:', data.text);
+            session.sendClientContent({ turns: [{ role: 'user', parts: [{ text: data.text }] }] });
+          }).catch(console.error);
         } else if (data.type === 'toolResponse' && sessionPromise) {
           sessionPromise.then((session) => {
             session.sendToolResponse({

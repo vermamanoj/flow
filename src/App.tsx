@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import { Workspace } from './components/Workspace';
@@ -25,6 +25,7 @@ export default function App() {
   const processorRef = useRef<ScriptProcessorNode | null>(null);
   const captureIntervalRef = useRef<number | null>(null);
   const activeAudioNodesRef = useRef<AudioBufferSourceNode[]>([]);
+  const [logCollapsed, setLogCollapsed] = useState(false);
 
   const stopAudioPlayback = () => {
     activeAudioNodesRef.current.forEach(node => {
@@ -36,7 +37,7 @@ export default function App() {
   const startSession = async () => {
     clearSessionActions();
     setState('LISTENING');
-    addLog({ type: 'system', message: 'Starting voice session...' });
+    addLog({ type: 'system', message: 'Starting session (voice + text)...' });
 
     // 1. Connect WebSocket
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -115,6 +116,14 @@ export default function App() {
     }
   };
 
+  const sendText = (text: string) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      addLog({ type: 'user', message: text });
+      wsRef.current.send(JSON.stringify({ type: 'text', text }));
+      setState('THINKING');
+    }
+  };
+
   const interruptSession = () => {
     stopAudioPlayback();
     setState('INTERRUPTED');
@@ -162,7 +171,7 @@ export default function App() {
       processor.connect(audioContext.destination);
     } catch (err) {
       console.error('Error accessing microphone:', err);
-      addLog({ type: 'system', message: 'Failed to access microphone.' });
+      addLog({ type: 'system', message: 'Microphone unavailable — text-only mode. Use the input bar above to chat.' });
     }
   };
 
@@ -341,12 +350,12 @@ export default function App() {
   };
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-gray-100 overflow-hidden font-sans">
-      <Header onStart={startSession} onStop={stopSession} onInterrupt={interruptSession} />
+    <div className="h-screen w-screen flex flex-col bg-slate-950 overflow-hidden font-sans">
+      <Header onStart={startSession} onStop={stopSession} onInterrupt={interruptSession} onSendText={sendText} />
       <div className="flex-1 flex overflow-hidden">
         <Sidebar onPlayWorkflow={executeWorkflow} />
         <Workspace />
-        <LogPanel />
+        <LogPanel collapsed={logCollapsed} onToggle={() => setLogCollapsed(!logCollapsed)} />
       </div>
     </div>
   );

@@ -1,8 +1,13 @@
 import React, { useEffect, useRef } from 'react';
 import { useAppStore } from '../store/useAppStore';
-import { User, Bot, Activity, CheckCircle, AlertTriangle, Save, Terminal, Mic } from 'lucide-react';
+import { User, Bot, Activity, CheckCircle, AlertTriangle, Save, Terminal, Mic, PanelRightOpen, PanelRightClose } from 'lucide-react';
 
-export const LogPanel: React.FC = () => {
+interface LogPanelProps {
+  collapsed: boolean;
+  onToggle: () => void;
+}
+
+export const LogPanel: React.FC<LogPanelProps> = ({ collapsed, onToggle }) => {
   const { logs } = useAppStore();
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -34,13 +39,30 @@ export const LogPanel: React.FC = () => {
     }
   };
 
+  // Collapsed: just a thin vertical bar with toggle
+  if (collapsed) {
+    return (
+      <aside className="w-10 bg-slate-900 flex flex-col items-center h-full shrink-0 border-l border-slate-800">
+        <button onClick={onToggle} className="mt-3 p-1.5 text-slate-500 hover:text-slate-300 transition-colors" title="Open Execution Log">
+          <PanelRightOpen size={16} />
+        </button>
+        <div className="mt-2 -rotate-90 whitespace-nowrap text-[9px] uppercase tracking-widest text-slate-600 font-semibold origin-center translate-y-12">
+          Log ({logs.length})
+        </div>
+      </aside>
+    );
+  }
+
   return (
     <aside className="w-80 bg-slate-900 flex flex-col h-full shrink-0 border-l border-slate-800">
-      <div className="px-4 py-3 border-b border-slate-800">
+      <div className="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
         <h2 className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest flex items-center gap-2">
           <Activity size={14} />
           Execution Log
         </h2>
+        <button onClick={onToggle} className="p-1 text-slate-500 hover:text-slate-300 transition-colors" title="Collapse">
+          <PanelRightClose size={14} />
+        </button>
       </div>
       
       <div className="flex-1 overflow-y-auto p-3 space-y-2 font-mono text-xs">
@@ -50,7 +72,7 @@ export const LogPanel: React.FC = () => {
               <Mic size={20} className="text-slate-600" />
             </div>
             <p className="text-center text-[11px] leading-relaxed">
-              Start a voice session to see the execution log here. Every tool call, response, and action will be tracked.
+              Start a session to see the execution log here. Every tool call, response, and action will be tracked.
             </p>
           </div>
         )}
