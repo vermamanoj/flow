@@ -62,36 +62,40 @@ export const Sidebar: React.FC<{ onPlayWorkflow: (wf: any) => void }> = ({ onPla
   };
 
   return (
-    <aside className="w-64 border-r border-gray-200 bg-gray-50 flex flex-col h-full shrink-0">
-      <div className="p-4 border-b border-gray-200 flex justify-between items-center">
-        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-          <Save size={16} />
-          Saved Workflows
+    <aside className="w-64 bg-slate-950 flex flex-col h-full shrink-0 border-r border-slate-800">
+      <div className="px-4 py-3 border-b border-slate-800 flex justify-between items-center">
+        <h2 className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+          <Save size={14} />
+          Workflows
         </h2>
-        {!user && (
-          <button onClick={handleLogin} className="text-xs text-indigo-600 hover:text-indigo-800 flex items-center gap-1">
-            <LogIn size={14} /> Login
+        {!user ? (
+          <button onClick={handleLogin} className="text-[11px] text-indigo-400 hover:text-indigo-300 flex items-center gap-1 transition-colors">
+            <LogIn size={12} /> Login
           </button>
+        ) : (
+          <div className="w-5 h-5 rounded-full bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center">
+            <span className="text-[9px] text-indigo-400 font-bold">{user.displayName?.[0] || user.email?.[0] || '?'}</span>
+          </div>
         )}
       </div>
       
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-3 space-y-2">
         {workflows.map(wf => (
-          <div key={wf.id} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow group">
-            <h3 className="font-semibold text-gray-900 mb-1">{wf.name}</h3>
-            <p className="text-xs text-gray-500 mb-3 line-clamp-2">{wf.description}</p>
+          <div key={wf.id} className="bg-slate-900 border border-slate-800 rounded-lg p-3 hover:border-slate-700 transition-colors group">
+            <h3 className="font-semibold text-slate-200 text-sm mb-1 truncate">{wf.name}</h3>
+            <p className="text-[10px] text-slate-500 mb-2 line-clamp-2">{wf.description}</p>
             
-            <div className="flex items-center justify-between mt-auto">
-              <span className="text-[10px] text-gray-400 flex items-center gap-1">
-                <Clock size={12} />
+            <div className="flex items-center justify-between">
+              <span className="text-[9px] text-slate-600 flex items-center gap-1 tabular-nums">
+                <Clock size={10} />
                 {new Date(wf.lastRun).toLocaleDateString()}
               </span>
               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button onClick={() => setViewingWorkflow(wf)} className="bg-gray-50 text-gray-600 hover:bg-gray-100 p-1.5 rounded-full">
-                  <Eye size={14} />
+                <button onClick={() => setViewingWorkflow(wf)} className="text-slate-500 hover:text-slate-300 p-1 rounded transition-colors">
+                  <Eye size={12} />
                 </button>
-                <button onClick={() => onPlayWorkflow(wf)} className="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 p-1.5 rounded-full">
-                  <Play size={14} />
+                <button onClick={() => onPlayWorkflow(wf)} className="text-indigo-400 hover:text-indigo-300 p-1 rounded transition-colors">
+                  <Play size={12} />
                 </button>
               </div>
             </div>
@@ -99,8 +103,13 @@ export const Sidebar: React.FC<{ onPlayWorkflow: (wf: any) => void }> = ({ onPla
         ))}
         
         {workflows.length === 0 && (
-          <div className="text-center text-sm text-gray-400 py-8">
-            {user ? "No workflows saved yet." : "Login to save workflows."}
+          <div className="flex flex-col items-center justify-center h-full text-slate-600 gap-3 px-2">
+            <div className="w-10 h-10 rounded-full bg-slate-900 flex items-center justify-center border border-slate-800">
+              <Save size={16} className="text-slate-700" />
+            </div>
+            <p className="text-center text-[11px] leading-relaxed">
+              {user ? "No workflows saved yet. Complete a task and ask the agent to save it." : "Sign in with Google to save and replay workflows."}
+            </p>
           </div>
         )}
       </div>

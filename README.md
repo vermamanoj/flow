@@ -98,8 +98,8 @@ User (Browser)  ←—WebSocket—→  Express Backend  ←—WebSocket—→  G
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/vermamanoj/proxi-flow.git
-cd proxi-flow
+git clone https://github.com/vermamanoj/flow.git
+cd flow
 
 # 2. Install dependencies
 npm install

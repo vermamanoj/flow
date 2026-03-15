@@ -71,5 +71,5 @@ The architecture uses a **hybrid tool routing** pattern: workspace tools (naviga
 
 ## Try it out
 
-- [GitHub Repository](https://github.com/vermamanoj/proxi-flow)
-- [Architecture Diagram](https://github.com/vermamanoj/proxi-flow/blob/main/ARCHITECTURE.md)
+- [GitHub Repository](https://github.com/vermamanoj/flow)
+- [Architecture Diagram](https://github.com/vermamanoj/flow/blob/main/ARCHITECTURE.md)
