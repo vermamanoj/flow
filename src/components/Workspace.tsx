@@ -1,11 +1,39 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
-import { Mail, FileText, Send, CheckCircle2, Circle, AlertCircle, PlayCircle, MessageCircle, Terminal, Zap, Mic, Monitor, ShieldCheck, FolderCog, Eye } from 'lucide-react';
+import { Mail, FileText, Send, CheckCircle2, Circle, AlertCircle, PlayCircle, MessageCircle, Terminal, Zap, Mic, Monitor, ShieldCheck, FolderCog, Eye, Sparkles, ArrowRight, CheckCheck } from 'lucide-react';
 
 export const Workspace: React.FC = () => {
   const { state, plan, logs, currentView, setCurrentView, drafts, pendingApproval } = useAppStore();
   const transcriptRef = useRef<HTMLDivElement>(null);
   const workspaceRef = useRef<HTMLDivElement>(null);
+  const [waitlistName, setWaitlistName] = useState('');
+  const [waitlistEmail, setWaitlistEmail] = useState('');
+  const [waitlistStatus, setWaitlistStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
+  const [waitlistMsg, setWaitlistMsg] = useState('');
+
+  const handleWaitlistSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!waitlistEmail.includes('@')) return;
+    setWaitlistStatus('submitting');
+    try {
+      const res = await fetch('/api/waitlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: waitlistName, email: waitlistEmail })
+      });
+      const data = await res.json();
+      if (data.status === 'success' || data.status === 'already_registered') {
+        setWaitlistStatus('success');
+        setWaitlistMsg(data.message);
+      } else {
+        setWaitlistStatus('error');
+        setWaitlistMsg(data.error || 'Something went wrong');
+      }
+    } catch {
+      setWaitlistStatus('error');
+      setWaitlistMsg('Network error. Please try again.');
+    }
+  };
 
   // Expose workspace ref for canvas capture later
   useEffect(() => {
@@ -118,7 +146,7 @@ export const Workspace: React.FC = () => {
               </div>
             </div>
 
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 mb-8">
               <h3 className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-3">Try saying or typing</h3>
               <div className="flex flex-wrap gap-2 justify-center">
                 {[
@@ -134,6 +162,50 @@ export const Workspace: React.FC = () => {
                   </span>
                 ))}
               </div>
+            </div>
+
+            {/* Waitlist Section */}
+            <div className="bg-gradient-to-br from-indigo-950/50 to-violet-950/50 border border-indigo-500/20 rounded-2xl p-6">
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <Sparkles size={18} className="text-indigo-400" />
+                <h3 className="text-lg font-bold text-white">Interested in Proxi Flow?</h3>
+              </div>
+              <p className="text-slate-400 text-sm mb-5">Join the waitlist to get early access and updates when we launch.</p>
+              
+              {waitlistStatus === 'success' ? (
+                <div className="flex items-center justify-center gap-2 py-4 text-emerald-400">
+                  <CheckCheck size={20} />
+                  <span className="font-medium">{waitlistMsg}</span>
+                </div>
+              ) : (
+                <form onSubmit={handleWaitlistSubmit} className="flex flex-col sm:flex-row gap-2 max-w-lg mx-auto">
+                  <input
+                    type="text"
+                    value={waitlistName}
+                    onChange={(e) => setWaitlistName(e.target.value)}
+                    placeholder="Your name"
+                    className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500/50 transition-colors"
+                  />
+                  <input
+                    type="email"
+                    value={waitlistEmail}
+                    onChange={(e) => setWaitlistEmail(e.target.value)}
+                    placeholder="your@email.com"
+                    required
+                    className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500/50 transition-colors"
+                  />
+                  <button
+                    type="submit"
+                    disabled={waitlistStatus === 'submitting' || !waitlistEmail.includes('@')}
+                    className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 text-white px-5 py-2.5 rounded-lg font-medium text-sm transition-colors shrink-0"
+                  >
+                    {waitlistStatus === 'submitting' ? 'Joining...' : (<>Join Waitlist <ArrowRight size={14} /></>)}
+                  </button>
+                </form>
+              )}
+              {waitlistStatus === 'error' && (
+                <p className="text-red-400 text-xs mt-2 text-center">{waitlistMsg}</p>
+              )}
             </div>
           </div>
         </div>

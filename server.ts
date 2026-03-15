@@ -317,9 +317,40 @@ async function startServer() {
   const app = express();
   const server = http.createServer(app);
 
+  // Parse JSON bodies
+  app.use(express.json());
+
   // API routes FIRST
   app.get('/api/health', (req, res) => {
     res.json({ status: 'ok' });
+  });
+
+  // Waitlist endpoint
+  const waitlistFile = path.join(__dirname, 'waitlist.json');
+  let waitlist: { name: string; email: string; timestamp: string }[] = [];
+  try {
+    if (fs.existsSync(waitlistFile)) {
+      waitlist = JSON.parse(fs.readFileSync(waitlistFile, 'utf-8'));
+    }
+  } catch { /* first run */ }
+
+  app.post('/api/waitlist', (req, res) => {
+    const { name, email } = req.body || {};
+    if (!email || typeof email !== 'string' || !email.includes('@')) {
+      return res.status(400).json({ error: 'Valid email required' });
+    }
+    if (waitlist.some(w => w.email.toLowerCase() === email.toLowerCase())) {
+      return res.json({ status: 'already_registered', message: "You're already on the list!" });
+    }
+    const entry = { name: name || 'Anonymous', email: email.trim(), timestamp: new Date().toISOString() };
+    waitlist.push(entry);
+    try { fs.writeFileSync(waitlistFile, JSON.stringify(waitlist, null, 2)); } catch {}
+    console.log(`Waitlist signup: ${entry.name} <${entry.email}>`);
+    return res.json({ status: 'success', message: "You're on the waitlist!", count: waitlist.length });
+  });
+
+  app.get('/api/waitlist', (req, res) => {
+    res.json({ count: waitlist.length, entries: waitlist });
   });
 
   // WebSocket setup for Gemini Live API Proxy
