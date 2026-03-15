@@ -1,9 +1,10 @@
 import React, { useEffect, useRef } from 'react';
 import { useAppStore } from '../store/useAppStore';
-import { Mail, FileText, Send, CheckCircle2, Circle, AlertCircle, PlayCircle, StopCircle } from 'lucide-react';
+import { Mail, FileText, Send, CheckCircle2, Circle, AlertCircle, PlayCircle, MessageCircle, Terminal } from 'lucide-react';
 
 export const Workspace: React.FC = () => {
-  const { state, plan, currentView, setCurrentView, drafts, pendingApproval } = useAppStore();
+  const { state, plan, logs, currentView, setCurrentView, drafts, pendingApproval } = useAppStore();
+  const transcriptRef = useRef<HTMLDivElement>(null);
   const workspaceRef = useRef<HTMLDivElement>(null);
 
   // Expose workspace ref for canvas capture later
@@ -11,8 +12,39 @@ export const Workspace: React.FC = () => {
     (window as any).workspaceRef = workspaceRef.current;
   }, []);
 
+  // Auto-scroll transcript to the end
+  const conversationLogs = logs.filter(l => ['user', 'agent', 'action'].includes(l.type));
+  useEffect(() => {
+    if (transcriptRef.current) {
+      transcriptRef.current.scrollLeft = transcriptRef.current.scrollWidth;
+    }
+  }, [conversationLogs.length]);
+
   return (
     <main className="flex-1 flex flex-col h-full bg-gray-100 overflow-hidden">
+      {/* Conversation Transcript Strip */}
+      {conversationLogs.length > 0 && (
+        <div className="bg-gray-900 text-gray-100 px-4 py-2.5 shrink-0 border-b border-gray-800">
+          <div className="flex items-center gap-2 mb-1.5">
+            <MessageCircle size={12} className="text-gray-500" />
+            <span className="text-[10px] uppercase tracking-widest text-gray-500 font-semibold">Live Transcript</span>
+          </div>
+          <div ref={transcriptRef} className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
+            {conversationLogs.slice(-12).map((log) => (
+              <div key={log.id} className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs whitespace-nowrap shrink-0
+                ${log.type === 'user' ? 'bg-blue-900/50 text-blue-200 border border-blue-800' :
+                  log.type === 'agent' ? 'bg-emerald-900/50 text-emerald-200 border border-emerald-800' :
+                  'bg-amber-900/50 text-amber-200 border border-amber-800'}`}>
+                {log.type === 'action' ? <Terminal size={10} /> : 
+                 log.type === 'user' ? <span className="font-bold text-[10px]">YOU</span> :
+                 <span className="font-bold text-[10px]">AI</span>}
+                <span className="max-w-[200px] truncate">{log.message}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Current Plan Strip */}
       {state !== 'IDLE' && (
         <div className="bg-white border-b border-gray-200 p-4 shrink-0 shadow-sm z-10">

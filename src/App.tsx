@@ -67,6 +67,8 @@ export default function App() {
         addLog({ type: 'system', message: 'Agent interrupted by user.' });
       } else if (data.type === 'toolCall') {
         handleToolCall(data.toolCall);
+      } else if (data.type === 'serverToolExec') {
+        addLog({ type: 'action', message: `Desktop: ${data.name}`, details: data.args });
       } else if (data.type === 'debug') {
         console.log('DEBUG:', data.message);
       } else if (data.type === 'error') {
