@@ -41,7 +41,8 @@ export const Workspace: React.FC = () => {
   }, []);
 
   // Auto-scroll transcript to the end
-  const conversationLogs = logs.filter(l => ['user', 'agent', 'action'].includes(l.type));
+  // Only show user and agent messages in transcript (not action logs which are noisy)
+  const conversationLogs = logs.filter(l => ['user', 'agent'].includes(l.type));
   useEffect(() => {
     if (transcriptRef.current) {
       transcriptRef.current.scrollLeft = transcriptRef.current.scrollWidth;
@@ -73,27 +74,26 @@ export const Workspace: React.FC = () => {
         </div>
       )}
 
-      {/* Current Plan Strip */}
-      {state !== 'IDLE' && (
-        <div className="bg-slate-900/80 border-b border-slate-800 p-4 shrink-0 z-10">
-          <h3 className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-3">Current Plan</h3>
-          <div className="flex gap-3 overflow-x-auto pb-2">
+      {/* Current Plan Strip — only show when there are actual plan steps */}
+      {plan.length > 0 && (
+        <div className="bg-slate-900/80 border-b border-slate-800 px-4 py-3 shrink-0 z-10">
+          <h3 className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-2">Current Plan</h3>
+          <div className="flex flex-col gap-1.5">
             {plan.map((step, idx) => (
-              <div key={step.id} className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm border whitespace-nowrap
-                ${step.status === 'active' ? 'bg-indigo-500/20 border-indigo-500/30 text-indigo-300 font-medium' : 
-                  step.status === 'complete' ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-300' : 
-                  step.status === 'approval-needed' ? 'bg-red-500/20 border-red-500/30 text-red-300 animate-pulse' :
-                  'bg-slate-800 border-slate-700 text-slate-400'}`}>
-                {step.status === 'complete' ? <CheckCircle2 size={16} /> : 
-                 step.status === 'active' ? <PlayCircle size={16} /> :
-                 step.status === 'approval-needed' ? <AlertCircle size={16} /> :
-                 <Circle size={16} />}
-                {idx + 1}. {step.label}
+              <div key={step.id} className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm
+                ${step.status === 'active' ? 'bg-indigo-500/15 text-indigo-200 border border-indigo-500/20' : 
+                  step.status === 'complete' ? 'bg-emerald-500/10 text-emerald-300' : 
+                  step.status === 'approval-needed' ? 'bg-red-500/15 text-red-300 animate-pulse border border-red-500/20' :
+                  'text-slate-400'}`}>
+                <span className="shrink-0">
+                  {step.status === 'complete' ? <CheckCircle2 size={16} className="text-emerald-400" /> : 
+                   step.status === 'active' ? <PlayCircle size={16} className="text-indigo-400" /> :
+                   step.status === 'approval-needed' ? <AlertCircle size={16} className="text-red-400" /> :
+                   <Circle size={16} className="text-slate-600" />}
+                </span>
+                <span>{idx + 1}. {step.label || 'Processing...'}</span>
               </div>
             ))}
-            {plan.length === 0 && (
-              <div className="text-sm text-slate-500 italic">Waiting for plan...</div>
-            )}
           </div>
         </div>
       )}

@@ -353,11 +353,31 @@ async function startServer() {
     res.json({ count: waitlist.length, entries: waitlist });
   });
 
+  // Access code verification
+  const ACCESS_CODE = process.env.ACCESS_CODE || 'proxiflow2025';
+
+  app.post('/api/verify-code', (req, res) => {
+    const { code } = req.body || {};
+    if (code === ACCESS_CODE) {
+      return res.json({ status: 'ok' });
+    }
+    return res.status(403).json({ error: 'Invalid access code' });
+  });
+
   // WebSocket setup for Gemini Live API Proxy
   const wss = new WebSocketServer({ server, path: '/ws' });
 
-  wss.on('connection', (ws: WebSocket) => {
-    console.log('Client connected to WebSocket');
+  wss.on('connection', (ws: WebSocket, req: any) => {
+    // Check access code from query string
+    const url = new URL(req.url || '', `http://${req.headers.host}`);
+    const code = url.searchParams.get('code');
+    if (code !== ACCESS_CODE) {
+      console.log('WebSocket rejected: invalid access code');
+      ws.send(JSON.stringify({ type: 'error', error: 'Invalid access code. Please enter a valid code to start a session.' }));
+      ws.close();
+      return;
+    }
+    console.log('Client connected to WebSocket (access verified)');
     
     let sessionPromise: Promise<any> | null = null;
     

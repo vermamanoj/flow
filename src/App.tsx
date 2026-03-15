@@ -26,6 +26,10 @@ export default function App() {
   const captureIntervalRef = useRef<number | null>(null);
   const activeAudioNodesRef = useRef<AudioBufferSourceNode[]>([]);
   const [logCollapsed, setLogCollapsed] = useState(false);
+  const [accessCode, setAccessCode] = useState(() => sessionStorage.getItem('proxi_access_code') || '');
+  const [showCodePrompt, setShowCodePrompt] = useState(false);
+  const [codeInput, setCodeInput] = useState('');
+  const [codeError, setCodeError] = useState('');
 
   const stopAudioPlayback = () => {
     activeAudioNodesRef.current.forEach(node => {
@@ -34,14 +38,52 @@ export default function App() {
     activeAudioNodesRef.current = [];
   };
 
+  const verifyAndSaveCode = async (code: string): Promise<boolean> => {
+    try {
+      const res = await fetch('/api/verify-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code })
+      });
+      if (res.ok) {
+        setAccessCode(code);
+        sessionStorage.setItem('proxi_access_code', code);
+        return true;
+      }
+      return false;
+    } catch { return false; }
+  };
+
+  const handleCodeSubmit = async () => {
+    setCodeError('');
+    const ok = await verifyAndSaveCode(codeInput);
+    if (ok) {
+      setShowCodePrompt(false);
+      setCodeInput('');
+      // Now start the session with the verified code
+      startSessionWithCode(codeInput);
+    } else {
+      setCodeError('Invalid access code. Contact the project owner for access.');
+    }
+  };
+
   const startSession = async () => {
+    // If no saved code, prompt for one
+    if (!accessCode) {
+      setShowCodePrompt(true);
+      return;
+    }
+    startSessionWithCode(accessCode);
+  };
+
+  const startSessionWithCode = async (code: string) => {
     clearSessionActions();
     setState('LISTENING');
-    addLog({ type: 'system', message: 'Starting session (voice + text)...' });
+    addLog({ type: 'system', message: 'Starting session...' });
 
-    // 1. Connect WebSocket
+    // 1. Connect WebSocket with access code
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    const wsUrl = `${protocol}//${window.location.host}/ws?code=${encodeURIComponent(code)}`;
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
@@ -75,6 +117,11 @@ export default function App() {
         console.log('DEBUG:', data.message);
       } else if (data.type === 'error') {
         addLog({ type: 'system', message: `Error: ${data.error}` });
+        // If access code was rejected, clear it
+        if (data.error?.includes('access code')) {
+          setAccessCode('');
+          sessionStorage.removeItem('proxi_access_code');
+        }
         stopSession();
       }
     };
@@ -238,7 +285,14 @@ export default function App() {
     
     for (const call of toolCall.functionCalls) {
       const { name, args, id } = call;
-      addLog({ type: 'action', message: `Executing tool: ${name}`, details: args });
+      const friendlyNames: Record<string, string> = {
+        navigate_view: 'Navigating workspace',
+        draft_content: 'Drafting content',
+        request_approval: 'Requesting approval',
+        update_plan: 'Updating plan',
+        save_workflow: 'Saving workflow',
+      };
+      addLog({ type: 'action', message: friendlyNames[name] || `Running: ${name}`, details: args });
       
       let result = { status: 'success' };
       
@@ -266,8 +320,15 @@ export default function App() {
         addLog({ type: 'approval', message: `Approval ${approved ? 'granted' : 'denied'}` });
         setState('ACTING');
       } else if (name === 'update_plan') {
-        setPlan(args.steps);
-        addLog({ type: 'system', message: 'Updated plan.' });
+        // Normalize Gemini's step data — it may send various shapes
+        const rawSteps = args.steps || args.plan || [];
+        const normalized = rawSteps.map((s: any, i: number) => ({
+          id: s.id || String(i + 1),
+          label: s.label || s.description || s.text || s.name || s.step || `Step ${i + 1}`,
+          status: s.status || 'pending'
+        }));
+        setPlan(normalized);
+        addLog({ type: 'system', message: `Plan updated (${normalized.length} steps)` });
       } else if (name === 'save_workflow') {
         const newWorkflow = {
           id: Math.random().toString(36).substring(7),
@@ -357,6 +418,41 @@ export default function App() {
         <Workspace />
         <LogPanel collapsed={logCollapsed} onToggle={() => setLogCollapsed(!logCollapsed)} />
       </div>
+
+      {/* Access Code Prompt Modal */}
+      {showCodePrompt && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-slate-900 rounded-2xl border border-slate-700 shadow-2xl w-full max-w-sm p-6">
+            <h3 className="text-lg font-bold text-white mb-1">Enter Access Code</h3>
+            <p className="text-sm text-slate-400 mb-5">This demo requires an access code. Judges: check your submission notes.</p>
+            <input
+              type="text"
+              value={codeInput}
+              onChange={(e) => setCodeInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleCodeSubmit()}
+              placeholder="Enter code..."
+              autoFocus
+              className="w-full bg-slate-800 border border-slate-600 rounded-lg px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/30 mb-3"
+            />
+            {codeError && <p className="text-red-400 text-xs mb-3">{codeError}</p>}
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setShowCodePrompt(false); setCodeError(''); setCodeInput(''); }}
+                className="flex-1 py-2 rounded-lg text-sm font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 border border-slate-700 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCodeSubmit}
+                disabled={!codeInput.trim()}
+                className="flex-1 py-2 rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 transition-colors"
+              >
+                Verify & Start
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
