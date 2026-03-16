@@ -397,7 +397,7 @@ async function startServer() {
           const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
           
           sessionPromise = ai.live.connect({
-            model: "gemini-2.0-flash-live-001",
+            model: "gemini-2.5-flash-preview-native-audio",
             callbacks: {
               onopen: () => {
                 console.log('Connected to Gemini Live API');
